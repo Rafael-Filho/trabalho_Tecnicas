@@ -8,6 +8,8 @@ public class Swing {
     private JTextField buscaField;
     private JButton buscarBtn;
     private JComboBox<String> filtroCombo;
+    private java.util.List<Look> looks = new java.util.ArrayList<>();
+    private JPanel looksListPanel;
 
     public Swing() {
         gvp = new Vestuario();
@@ -31,13 +33,13 @@ public class Swing {
         itensListPanel = new JPanel();
         itensListPanel.setLayout(new BoxLayout(itensListPanel, BoxLayout.Y_AXIS));
         JScrollPane itensScrollPane = new JScrollPane(itensListPanel);
-        itensScrollPane.setPreferredSize(new Dimension(0, 450)); // Limita altura máxima
+        itensScrollPane.setPreferredSize(new Dimension(0, 450));
 
         // Barra de busca
         JPanel buscaPanel = new JPanel(new BorderLayout());
         buscaField = new JTextField();
         buscarBtn = new JButton("Buscar");
-        // Combo de filtros
+        // combo de filtros
         String[] opcoesFiltro = {"Nome", "Cor", "Tamanho", "Loja", "Conservação"};
         filtroCombo = new JComboBox<>(opcoesFiltro);
         JPanel centroBusca = new JPanel(new BorderLayout());
@@ -54,39 +56,40 @@ public class Swing {
         JPanel looksPanel = new JPanel(new BorderLayout());
         JButton bAdicionarLook = new JButton("Adicionar Look");
         JButton bRemoverLook = new JButton("Remover Look");
-        JButton bListarLooks = new JButton("Listar Looks");
-        JButton usarLookBtn = new JButton("Usar Look");
 
         JPanel botoesLooksPanel = new JPanel();
         botoesLooksPanel.add(bAdicionarLook);
         botoesLooksPanel.add(bRemoverLook);
-        botoesLooksPanel.add(bListarLooks);
-        botoesLooksPanel.add(usarLookBtn);
 
-        JTextArea looksTextArea = new JTextArea();
-        looksTextArea.setEditable(false);
-        JScrollPane looksScrollPane = new JScrollPane(looksTextArea);
+        looksListPanel = new JPanel();
+        looksListPanel.setLayout(new BoxLayout(looksListPanel, BoxLayout.Y_AXIS));
+        JScrollPane looksScrollPane = new JScrollPane(looksListPanel);
+        looksScrollPane.setPreferredSize(new Dimension(0, 450));
 
         looksPanel.add(botoesLooksPanel, BorderLayout.NORTH);
         looksPanel.add(looksScrollPane, BorderLayout.CENTER);
 
         //painel de estatisticas
         JPanel statsPanel = new JPanel(new BorderLayout());
-        JButton bItensMaisUsados = new JButton("Itens Mais Usados");
-        JButton bItensEmprestados = new JButton("Itens Emprestados");
-        JButton bLooksMaisUsados = new JButton("Looks Mais Usados");
-
-        JPanel botoesStatsPanel = new JPanel();
-        botoesStatsPanel.add(bItensMaisUsados);
-        botoesStatsPanel.add(bItensEmprestados);
-        botoesStatsPanel.add(bLooksMaisUsados);
-
+        JTabbedPane statsTabs = new JTabbedPane();
+        // Geral
+        JPanel geralPanel = new JPanel(new BorderLayout());
         JTextArea statsTextArea = new JTextArea();
         statsTextArea.setEditable(false);
         JScrollPane statsScrollPane = new JScrollPane(statsTextArea);
-
-        statsPanel.add(botoesStatsPanel, BorderLayout.NORTH);
-        statsPanel.add(statsScrollPane, BorderLayout.CENTER);
+        geralPanel.add(statsScrollPane, BorderLayout.CENTER);
+        statsTabs.addTab("Geral", geralPanel);
+        // Looks
+        JPanel looksStatsPanel = new JPanel();
+        looksStatsPanel.add(new JLabel("Estatísticas de Looks (em breve)"));
+        statsTabs.addTab("Looks", looksStatsPanel);
+        // Aba Itens Emprestados
+        JPanel emprestadosPanel = new JPanel();
+        emprestadosPanel.add(new JLabel("Itens Emprestados (em breve)"));
+        statsTabs.addTab("Itens Emprestados", emprestadosPanel);
+        statsPanel.add(statsTabs, BorderLayout.CENTER);
+        // Atualizar estatísticas ao abrir a aba
+        statsTabs.addChangeListener(e -> atualizarEstatisticasBasicas(statsTextArea));
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
@@ -156,7 +159,8 @@ public class Swing {
                     if (novoItem != null) {
                         gvp.addItem(novoItem);
                         JOptionPane.showMessageDialog(janela, "Item adicionado com sucesso!");
-                        atualizarLista(); // Atualiza a lista automaticamente
+                        atualizarLista();
+                        atualizarEstatisticasBasicas(statsTextArea);
                     }
                 }
             }
@@ -180,6 +184,7 @@ public class Swing {
                 }
                 // Atualiza a listagem
                 atualizarLista();
+                atualizarEstatisticasBasicas(statsTextArea);
             }
         });
 
@@ -189,14 +194,18 @@ public class Swing {
         buscaField.addActionListener(e -> atualizarLista());
 
         // Atualizar lista ao listar itens
-        // Remover listener do botão Listar Itens
+        bAdicionarLook.addActionListener(e -> {
+            abrirModalCriarLook();
+            atualizarListaLooks();
+        });
+
+        bRemoverLook.addActionListener(e -> abrirModalExcluirLook());
 
         janela.add(tabbedPane);
         janela.setVisible(true);
     }
 
     // Função para atualizar a lista de itens com filtro
-    // Agora como método da classe
     private void atualizarLista() {
         String filtro = buscaField.getText().trim().toLowerCase();
         String campo = (String) filtroCombo.getSelectedItem();
@@ -278,7 +287,7 @@ public class Swing {
         itensListPanel.repaint();
     }
 
-    // Métodos auxiliares para editar e emprestar
+    // Métodos para editar e emprestar
     private void editarItemDialog(Item item) {
         JPanel panel = new JPanel(new java.awt.GridLayout(0, 2));
         JTextField nomeField = new JTextField(item.getNome());
@@ -325,5 +334,282 @@ public class Swing {
             JOptionPane.showMessageDialog(janela, "Item emprestado!");
             atualizarLista();
         }
+    }
+
+    private void abrirModalCriarLook() {
+        java.util.List<Roupas_nao_intimas> roupasNaoIntimas = new java.util.ArrayList<>();
+        java.util.List<Acessorios> acessorios = new java.util.ArrayList<>();
+        java.util.List<RoupaIntima> roupasIntimas = new java.util.ArrayList<>();
+        for (Item item : gvp.getItens()) {
+            if (item instanceof Roupas_nao_intimas) roupasNaoIntimas.add((Roupas_nao_intimas) item);
+            if (item instanceof Acessorios) acessorios.add((Acessorios) item);
+            if (item instanceof RoupaIntima) roupasIntimas.add((RoupaIntima) item);
+        }
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JTextField nomeField = new JTextField();
+        panel.add(new JLabel("Nome do Look:"));
+        panel.add(nomeField);
+        panel.add(new JLabel("Para selecionar mais de uma roupa ou acessório, utilize 'Ctrl+Click' (ou 'Cmd+Click' no Mac)."));
+        // Roupas não íntimas
+        panel.add(new JLabel("Selecione as roupas não íntimas:"));
+        JList<Roupas_nao_intimas> listRoupas = new JList<>(roupasNaoIntimas.toArray(new Roupas_nao_intimas[0]));
+        listRoupas.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Roupas_nao_intimas) {
+                    setText(((Roupas_nao_intimas) value).getNome());
+                }
+                return this;
+            }
+        });
+        listRoupas.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        panel.add(new JScrollPane(listRoupas));
+        // Roupa íntima
+        panel.add(new JLabel("Selecione uma roupa íntima:"));
+        JList<RoupaIntima> listIntima = new JList<>(roupasIntimas.toArray(new RoupaIntima[0]));
+        listIntima.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof RoupaIntima) {
+                    setText(((RoupaIntima) value).getNome());
+                }
+                return this;
+            }
+        });
+        listIntima.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        panel.add(new JScrollPane(listIntima));
+        // Acessórios
+        panel.add(new JLabel("Selecione os acessórios:"));
+        JList<Acessorios> listAcessorios = new JList<>(acessorios.toArray(new Acessorios[0]));
+        listAcessorios.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Acessorios) {
+                    setText(((Acessorios) value).getNome());
+                }
+                return this;
+            }
+        });
+        listAcessorios.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        panel.add(new JScrollPane(listAcessorios));
+        int result = JOptionPane.showConfirmDialog(janela, panel, "Criar Look", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            String nome = nomeField.getText();
+            java.util.List<Roupas_nao_intimas> selecionadas = listRoupas.getSelectedValuesList();
+            RoupaIntima intima = listIntima.getSelectedValue();
+            java.util.List<Acessorios> selecionados = listAcessorios.getSelectedValuesList();
+            if (nome.isEmpty() || intima == null || selecionadas.isEmpty()) {
+                JOptionPane.showMessageDialog(janela, "Preencha o nome, selecione pelo menos uma roupa não íntima e uma roupa íntima.");
+                return;
+            }
+            Look look = new Look(nome, selecionadas, intima, selecionados);
+            looks.add(look);
+            JOptionPane.showMessageDialog(janela, "Look criado com sucesso!");
+        }
+    }
+
+    private void atualizarListaLooks() {
+        looksListPanel.removeAll();
+        for (Look look : looks) {
+            JPanel lookPanel = new JPanel();
+            lookPanel.setLayout(new BorderLayout());
+            JLabel nomeLabel = new JLabel("<html><b>" + look.getNome() + "</b> - Usado: " + look.getVezesUsado() + "x</html>");
+            lookPanel.add(nomeLabel, BorderLayout.WEST);
+            JPanel fotosPanel = new JPanel();
+            fotosPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+            // Roupas não íntimas
+            for (Roupas_nao_intimas r : look.getRoupasNaoIntimas()) {
+                if (r.getImgPath() != null && !r.getImgPath().isEmpty()) {
+                    ImageIcon icon = new ImageIcon(r.getImgPath());
+                    Image img = icon.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                    fotosPanel.add(new JLabel(new ImageIcon(img)));
+                } else {
+                    fotosPanel.add(new JLabel("Sem imagem"));
+                }
+            }
+            // Roupa íntima
+            RoupaIntima intima = look.getRoupaIntima();
+            if (intima != null) {
+                if (intima.getImgPath() != null && !intima.getImgPath().isEmpty()) {
+                    ImageIcon icon = new ImageIcon(intima.getImgPath());
+                    Image img = icon.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                    fotosPanel.add(new JLabel(new ImageIcon(img)));
+                } else {
+                    fotosPanel.add(new JLabel("Sem imagem"));
+                }
+            }
+            // Acessórios
+            for (Acessorios a : look.getAcessorios()) {
+                if (a.getImgPath() != null && !a.getImgPath().isEmpty()) {
+                    ImageIcon icon = new ImageIcon(a.getImgPath());
+                    Image img = icon.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                    fotosPanel.add(new JLabel(new ImageIcon(img)));
+                } else {
+                    fotosPanel.add(new JLabel("Sem imagem"));
+                }
+            }
+            lookPanel.add(fotosPanel, BorderLayout.CENTER);
+            JButton usarBtn = new JButton("Usar Look");
+            usarBtn.addActionListener(e -> {
+                look.incrementarUso();
+                atualizarListaLooks();
+            });
+            lookPanel.add(usarBtn, BorderLayout.EAST);
+            JButton editarBtn = new JButton("Editar");
+            editarBtn.addActionListener(e -> abrirModalEditarLook(look));
+            lookPanel.add(editarBtn, BorderLayout.SOUTH);
+            JButton excluirBtn = new JButton("Excluir");
+            excluirBtn.addActionListener(e -> {
+                looks.remove(look);
+                atualizarListaLooks();
+            });
+            lookPanel.add(excluirBtn, BorderLayout.NORTH);
+            lookPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            lookPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
+            looksListPanel.add(lookPanel);
+        }
+        looksListPanel.revalidate();
+        looksListPanel.repaint();
+    }
+
+    private void abrirModalEditarLook(Look look) {
+        java.util.List<Roupas_nao_intimas> roupasNaoIntimas = new java.util.ArrayList<>();
+        java.util.List<Acessorios> acessorios = new java.util.ArrayList<>();
+        java.util.List<RoupaIntima> roupasIntimas = new java.util.ArrayList<>();
+        for (Item item : gvp.getItens()) {
+            if (item instanceof Roupas_nao_intimas) roupasNaoIntimas.add((Roupas_nao_intimas) item);
+            if (item instanceof Acessorios) acessorios.add((Acessorios) item);
+            if (item instanceof RoupaIntima) roupasIntimas.add((RoupaIntima) item);
+        }
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JTextField nomeField = new JTextField(look.getNome());
+        panel.add(new JLabel("Nome do Look:"));
+        panel.add(nomeField);
+        panel.add(new JLabel("Para selecionar mais de uma roupa ou acessório, utilize 'Ctrl+Click' (ou 'Cmd+Click' no Mac)."));
+        // Roupas não íntimas
+        panel.add(new JLabel("Selecione as roupas não íntimas:"));
+        JList<Roupas_nao_intimas> listRoupas = new JList<>(roupasNaoIntimas.toArray(new Roupas_nao_intimas[0]));
+        listRoupas.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Roupas_nao_intimas) {
+                    setText(((Roupas_nao_intimas) value).getNome());
+                }
+                return this;
+            }
+        });
+        listRoupas.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        // Selecionar as roupas já presentes no look
+        int[] selectedRoupas = roupasNaoIntimas.stream().mapToInt(r -> look.getRoupasNaoIntimas().contains(r) ? roupasNaoIntimas.indexOf(r) : -1).filter(i -> i >= 0).toArray();
+        listRoupas.setSelectedIndices(selectedRoupas);
+        panel.add(new JScrollPane(listRoupas));
+        // Roupa íntima
+        panel.add(new JLabel("Selecione uma roupa íntima:"));
+        JList<RoupaIntima> listIntima = new JList<>(roupasIntimas.toArray(new RoupaIntima[0]));
+        listIntima.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof RoupaIntima) {
+                    setText(((RoupaIntima) value).getNome());
+                }
+                return this;
+            }
+        });
+        listIntima.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        // Selecionar a roupa íntima já presente no look
+        int selectedIntima = roupasIntimas.indexOf(look.getRoupaIntima());
+        if (selectedIntima >= 0) listIntima.setSelectedIndex(selectedIntima);
+        panel.add(new JScrollPane(listIntima));
+        // Acessórios
+        panel.add(new JLabel("Selecione os acessórios:"));
+        JList<Acessorios> listAcessorios = new JList<>(acessorios.toArray(new Acessorios[0]));
+        listAcessorios.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Acessorios) {
+                    setText(((Acessorios) value).getNome());
+                }
+                return this;
+            }
+        });
+        listAcessorios.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        // Selecionar os acessórios já presentes no look
+        int[] selectedAcessorios = acessorios.stream().mapToInt(a -> look.getAcessorios().contains(a) ? acessorios.indexOf(a) : -1).filter(i -> i >= 0).toArray();
+        listAcessorios.setSelectedIndices(selectedAcessorios);
+        panel.add(new JScrollPane(listAcessorios));
+        int result = JOptionPane.showConfirmDialog(janela, panel, "Editar Look", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            String nome = nomeField.getText();
+            java.util.List<Roupas_nao_intimas> selecionadas = listRoupas.getSelectedValuesList();
+            RoupaIntima intima = listIntima.getSelectedValue();
+            java.util.List<Acessorios> selecionados = listAcessorios.getSelectedValuesList();
+            if (nome.isEmpty() || intima == null || selecionadas.isEmpty()) {
+                JOptionPane.showMessageDialog(janela, "Preencha o nome, selecione pelo menos uma roupa não íntima e uma roupa íntima.");
+                return;
+            }
+            look.setNome(nome);
+            look.setRoupasNaoIntimas(selecionadas);
+            look.setRoupaIntima(intima);
+            look.setAcessorios(selecionados);
+            atualizarListaLooks();
+        }
+    }
+
+    private void abrirModalExcluirLook() {
+        if (looks.isEmpty()) {
+            JOptionPane.showMessageDialog(janela, "Nenhum look cadastrado para excluir.");
+            return;
+        }
+        Look[] arrayLooks = looks.toArray(new Look[0]);
+        JList<Look> list = new JList<>(arrayLooks);
+        list.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Look) {
+                    setText(((Look) value).getNome());
+                }
+                return this;
+            }
+        });
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setPreferredSize(new Dimension(300, 200));
+        int result = JOptionPane.showConfirmDialog(janela, scroll, "Selecione o look para excluir", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            Look selecionado = list.getSelectedValue();
+            if (selecionado != null) {
+                looks.remove(selecionado);
+                atualizarListaLooks();
+                JOptionPane.showMessageDialog(janela, "Look excluído com sucesso!");
+            }
+        }
+    }
+
+    private void atualizarEstatisticasBasicas(JTextArea statsTextArea) {
+        int totalAcessorios = 0;
+        int totalRoupas = 0;
+        int totalIntimas = 0;
+        int totalNaoIntimas = 0;
+        for (Item item : gvp.getItens()) {
+            if (item instanceof Acessorios) totalAcessorios++;
+            if (item instanceof Roupas) totalRoupas++;
+            if (item instanceof RoupaIntima) totalIntimas++;
+            if (item instanceof Roupas_nao_intimas) totalNaoIntimas++;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("Estatísticas básicas:\n");
+        sb.append("Total de acessórios: ").append(totalAcessorios).append("\n");
+        sb.append("Total de roupas: ").append(totalRoupas).append("\n");
+        sb.append("Total de roupas íntimas: ").append(totalIntimas).append("\n");
+        sb.append("Total de roupas não íntimas: ").append(totalNaoIntimas).append("\n");
+        statsTextArea.setText(sb.toString());
     }
 }
