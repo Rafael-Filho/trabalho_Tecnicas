@@ -11,6 +11,19 @@ public class Swing {
     private java.util.List<Look> looks = new java.util.ArrayList<>();
     private JPanel looksListPanel;
 
+    // Classe interna para histórico de empréstimos
+    private static class EmprestimoHistorico {
+        String nomeItem;
+        String pessoa;
+        String data;
+        EmprestimoHistorico(String nomeItem, String pessoa, String data) {
+            this.nomeItem = nomeItem;
+            this.pessoa = pessoa;
+            this.data = data;
+        }
+    }
+    private java.util.List<EmprestimoHistorico> historicoEmprestimos = new java.util.ArrayList<>();
+
     public Swing() {
         gvp = new Vestuario();
         criarGUI();
@@ -80,16 +93,32 @@ public class Swing {
         geralPanel.add(statsScrollPane, BorderLayout.CENTER);
         statsTabs.addTab("Geral", geralPanel);
         // Looks
-        JPanel looksStatsPanel = new JPanel();
-        looksStatsPanel.add(new JLabel("Estatísticas de Looks (em breve)"));
-        statsTabs.addTab("Looks", looksStatsPanel);
-        // Aba Itens Emprestados
-        JPanel emprestadosPanel = new JPanel();
-        emprestadosPanel.add(new JLabel("Itens Emprestados (em breve)"));
-        statsTabs.addTab("Itens Emprestados", emprestadosPanel);
+        painelLooksStats = new JPanel();
+        painelLooksStats.setLayout(new BoxLayout(painelLooksStats, BoxLayout.Y_AXIS));
+        JScrollPane scrollLooksStats = new JScrollPane(painelLooksStats);
+        statsTabs.addTab("Looks", scrollLooksStats);
+        // Itens Emprestados
+        painelItensEmprestados = new JPanel();
+        painelItensEmprestados.setLayout(new BoxLayout(painelItensEmprestados, BoxLayout.Y_AXIS));
+        JScrollPane scrollEmprestados = new JScrollPane(painelItensEmprestados);
+        statsTabs.addTab("Itens Emprestados", scrollEmprestados);
+        // Pessoas
+        painelPessoas = new JPanel();
+        painelPessoas.setLayout(new BoxLayout(painelPessoas, BoxLayout.Y_AXIS));
+        JScrollPane scrollPessoas = new JScrollPane(painelPessoas);
+        statsTabs.addTab("Pessoas", scrollPessoas);
+        // Histórico
+        painelHistorico = new JPanel();
+        painelHistorico.setLayout(new BoxLayout(painelHistorico, BoxLayout.Y_AXIS));
+        JScrollPane scrollHistorico = new JScrollPane(painelHistorico);
+        statsTabs.addTab("Histórico", scrollHistorico);
         statsPanel.add(statsTabs, BorderLayout.CENTER);
         // Atualizar estatísticas ao abrir a aba
-        statsTabs.addChangeListener(e -> atualizarEstatisticasBasicas(statsTextArea));
+        statsTabs.addChangeListener(e -> {
+            atualizarEstatisticasBasicas(statsTextArea);
+            atualizarEstatisticasEmprestimos();
+            atualizarEstatisticasLooks();
+        });
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
@@ -185,6 +214,7 @@ public class Swing {
                 // Atualiza a listagem
                 atualizarLista();
                 atualizarEstatisticasBasicas(statsTextArea);
+                atualizarEstatisticasEmprestimos();
             }
         });
 
@@ -331,8 +361,10 @@ public class Swing {
         int result = JOptionPane.showConfirmDialog(janela, panel, "Emprestar Item", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
             ((IEmprestavel) item).registrarEmprestimo(pessoaField.getText(), dataField.getText());
+            historicoEmprestimos.add(new EmprestimoHistorico(item.getNome(), pessoaField.getText(), dataField.getText()));
             JOptionPane.showMessageDialog(janela, "Item emprestado!");
             atualizarLista();
+            atualizarEstatisticasEmprestimos();
         }
     }
 
@@ -456,6 +488,12 @@ public class Swing {
             JButton usarBtn = new JButton("Usar Look");
             usarBtn.addActionListener(e -> {
                 look.incrementarUso();
+                // Marcar todas as roupas do look como sujas
+                for (Roupas_nao_intimas r : look.getRoupasNaoIntimas()) {
+                    r.setStatus("Suja");
+                }
+                RoupaIntima roupaIntimaDoLook = look.getRoupaIntima();
+                if (roupaIntimaDoLook != null) roupaIntimaDoLook.setStatus("Suja");
                 atualizarListaLooks();
             });
             lookPanel.add(usarBtn, BorderLayout.EAST);
@@ -598,11 +636,13 @@ public class Swing {
         int totalRoupas = 0;
         int totalIntimas = 0;
         int totalNaoIntimas = 0;
+        int totalSujas = 0;
         for (Item item : gvp.getItens()) {
             if (item instanceof Acessorios) totalAcessorios++;
             if (item instanceof Roupas) totalRoupas++;
             if (item instanceof RoupaIntima) totalIntimas++;
             if (item instanceof Roupas_nao_intimas) totalNaoIntimas++;
+            if (item instanceof Roupas && ((Roupas) item).getStatus().equals("Suja")) totalSujas++;
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Estatísticas básicas:\n");
@@ -610,6 +650,110 @@ public class Swing {
         sb.append("Total de roupas: ").append(totalRoupas).append("\n");
         sb.append("Total de roupas íntimas: ").append(totalIntimas).append("\n");
         sb.append("Total de roupas não íntimas: ").append(totalNaoIntimas).append("\n");
+        sb.append("Total de roupas sujas: ").append(totalSujas).append("\n");
         statsTextArea.setText(sb.toString());
     }
+
+    // Estatísticas de itens emprestados, pessoas e histórico
+    private void atualizarEstatisticasEmprestimos() {
+        // Atualizar painel de Itens Emprestados
+        if (painelItensEmprestados != null) {
+            painelItensEmprestados.removeAll();
+            int totalEmprestados = 0;
+            java.util.List<Item> itensEmprestados = new java.util.ArrayList<>();
+            for (Item item : gvp.getItens()) {
+                if (item instanceof IEmprestavel) {
+                    String pessoa = null;
+                    if (item instanceof Acessorios) pessoa = ((Acessorios) item).getPessoaEmprestimo();
+                    else if (item instanceof Roupas_nao_intimas) pessoa = ((Roupas_nao_intimas) item).getPessoaEmprestimo();
+                    if (pessoa != null && !pessoa.isEmpty()) {
+                        totalEmprestados++;
+                        itensEmprestados.add(item);
+                    }
+                }
+            }
+            painelItensEmprestados.add(new JLabel("Itens emprestados: " + totalEmprestados));
+            for (Item item : itensEmprestados) {
+                String pessoa = (item instanceof Acessorios) ? ((Acessorios) item).getPessoaEmprestimo() : ((Roupas_nao_intimas) item).getPessoaEmprestimo();
+                painelItensEmprestados.add(new JLabel(item.getNome() + " (para: " + pessoa + ")"));
+            }
+            painelItensEmprestados.revalidate();
+            painelItensEmprestados.repaint();
+        }
+        // Atualizar painel de Pessoas
+        if (painelPessoas != null) {
+            painelPessoas.removeAll();
+            java.util.Map<String, Integer> pessoaCount = new java.util.HashMap<>();
+            for (Item item : gvp.getItens()) {
+                if (item instanceof IEmprestavel) {
+                    String pessoa = null;
+                    if (item instanceof Acessorios) pessoa = ((Acessorios) item).getPessoaEmprestimo();
+                    else if (item instanceof Roupas_nao_intimas) pessoa = ((Roupas_nao_intimas) item).getPessoaEmprestimo();
+                    if (pessoa != null && !pessoa.isEmpty()) {
+                        pessoaCount.put(pessoa, pessoaCount.getOrDefault(pessoa, 0) + 1);
+                    }
+                }
+            }
+            painelPessoas.add(new JLabel("Pessoas com itens emprestados:"));
+            for (String pessoa : pessoaCount.keySet()) {
+                painelPessoas.add(new JLabel(pessoa + ": " + pessoaCount.get(pessoa) + " item(ns)"));
+            }
+            painelPessoas.revalidate();
+            painelPessoas.repaint();
+        }
+        // Atualizar painel de Histórico
+        if (painelHistorico != null) {
+            painelHistorico.removeAll();
+            painelHistorico.add(new JLabel("Histórico de empréstimos:"));
+            for (EmprestimoHistorico hist : historicoEmprestimos) {
+                painelHistorico.add(new JLabel(hist.nomeItem + " → " + hist.pessoa + " (" + hist.data + ")"));
+            }
+            painelHistorico.revalidate();
+            painelHistorico.repaint();
+        }
+    }
+
+    // Estatísticas de Looks
+    private void atualizarEstatisticasLooks() {
+        if (painelLooksStats == null) return;
+        painelLooksStats.removeAll();
+        // 1. Quantas vezes cada look foi utilizado
+        painelLooksStats.add(new JLabel("Uso de cada look:"));
+        Look maisUsado = null, menosUsado = null;
+        for (Look look : looks) {
+            painelLooksStats.add(new JLabel(look.getNome() + ": " + look.getVezesUsado() + " vez(es)"));
+            if (maisUsado == null || look.getVezesUsado() > maisUsado.getVezesUsado()) maisUsado = look;
+            if (menosUsado == null || look.getVezesUsado() < menosUsado.getVezesUsado()) menosUsado = look;
+        }
+        painelLooksStats.add(new JLabel(""));
+        // 2. Peças de roupa mais utilizadas em looks
+        java.util.Map<String, Integer> roupaCount = new java.util.HashMap<>();
+        for (Look look : looks) {
+            for (Roupas_nao_intimas r : look.getRoupasNaoIntimas()) {
+                roupaCount.put(r.getNome(), roupaCount.getOrDefault(r.getNome(), 0) + 1);
+            }
+            RoupaIntima intima = look.getRoupaIntima();
+            if (intima != null) roupaCount.put(intima.getNome(), roupaCount.getOrDefault(intima.getNome(), 0) + 1);
+            for (Acessorios a : look.getAcessorios()) {
+                roupaCount.put(a.getNome(), roupaCount.getOrDefault(a.getNome(), 0) + 1);
+            }
+        }
+        painelLooksStats.add(new JLabel("Peças mais utilizadas em looks:"));
+        roupaCount.entrySet().stream()
+            .sorted((a, b) -> b.getValue() - a.getValue())
+            .limit(10)
+            .forEach(entry -> painelLooksStats.add(new JLabel(entry.getKey() + ": " + entry.getValue() + " look(s)")));
+        painelLooksStats.add(new JLabel(""));
+        // 3. Look mais e menos utilizados
+        if (maisUsado != null) painelLooksStats.add(new JLabel("Look mais utilizado: " + maisUsado.getNome() + " (" + maisUsado.getVezesUsado() + "x)"));
+        if (menosUsado != null) painelLooksStats.add(new JLabel("Look menos utilizado: " + menosUsado.getNome() + " (" + menosUsado.getVezesUsado() + "x)"));
+        painelLooksStats.revalidate();
+        painelLooksStats.repaint();
+    }
+
+    // Paineis das abas de estatísticas
+    private JPanel painelItensEmprestados;
+    private JPanel painelPessoas;
+    private JPanel painelHistorico;
+    private JPanel painelLooksStats;
 }
