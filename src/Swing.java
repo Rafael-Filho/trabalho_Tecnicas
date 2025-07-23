@@ -27,7 +27,7 @@ public class Swing {
         botoesItensPanel.add(bAdicionarItem);
         botoesItensPanel.add(bRemoverItem);
 
-        // Substituir JTextArea por JPanel para exibir itens com imagem
+        // Painel de itens
         itensListPanel = new JPanel();
         itensListPanel.setLayout(new BoxLayout(itensListPanel, BoxLayout.Y_AXIS));
         JScrollPane itensScrollPane = new JScrollPane(itensListPanel);
@@ -37,7 +37,7 @@ public class Swing {
         JPanel buscaPanel = new JPanel(new BorderLayout());
         buscaField = new JTextField();
         buscarBtn = new JButton("Buscar");
-        // Adiciona o combo de filtros
+        // Combo de filtros
         String[] opcoesFiltro = {"Nome", "Cor", "Tamanho", "Loja", "Conservação"};
         filtroCombo = new JComboBox<>(opcoesFiltro);
         JPanel centroBusca = new JPanel(new BorderLayout());
@@ -50,7 +50,7 @@ public class Swing {
         itensPanel.add(botoesItensPanel, BorderLayout.CENTER); // será ajustado abaixo
         itensPanel.add(itensScrollPane, BorderLayout.SOUTH);   // será ajustado abaixo
 
-        //painel de looks
+        // painel de looks
         JPanel looksPanel = new JPanel(new BorderLayout());
         JButton bAdicionarLook = new JButton("Adicionar Look");
         JButton bRemoverLook = new JButton("Remover Look");
@@ -129,10 +129,23 @@ public class Swing {
                     Item novoItem = null;
                     switch (tipo) {
                         case "Camisa":
+                            novoItem = new Camisa(nomeField.getText(), corField.getText(),
+                                    tamanhoField.getText(), lojaField.getText(), conservacaoField.getText(), imgPathField.getText());
+                            break;
                         case "Calça":
+                            novoItem = new Calca(nomeField.getText(), corField.getText(),
+                                    tamanhoField.getText(), lojaField.getText(), conservacaoField.getText(), imgPathField.getText());
+                            break;
                         case "Saia":
+                            novoItem = new Saia(nomeField.getText(), corField.getText(),
+                                    tamanhoField.getText(), lojaField.getText(), conservacaoField.getText(), imgPathField.getText());
+                            break;
                         case "Casaco":
-                            novoItem = new Roupas(nomeField.getText(), corField.getText(),
+                            novoItem = new Casaco(nomeField.getText(), corField.getText(),
+                                    tamanhoField.getText(), lojaField.getText(), conservacaoField.getText(), imgPathField.getText());
+                            break;
+                        case "Roupa Íntima":
+                            novoItem = new RoupaIntima(nomeField.getText(), corField.getText(),
                                     tamanhoField.getText(), lojaField.getText(), conservacaoField.getText(), imgPathField.getText());
                             break;
                         case "Acessório":
@@ -228,10 +241,89 @@ public class Swing {
                 JLabel infoLabel = new JLabel(info);
                 itemPanel.add(infoLabel, BorderLayout.CENTER);
                 itemPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+                itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+                itemPanel.setPreferredSize(new Dimension(itemPanel.getPreferredSize().width, 100));
+
+                // Painel de ações
+                itemPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) { 
+                            JPopupMenu menu = new JPopupMenu();
+                            JMenuItem editarItem = new JMenuItem("Editar");
+                            editarItem.addActionListener(ev -> editarItemDialog(item));
+                            menu.add(editarItem);
+                            if (item instanceof ILavavel) {
+                                JMenuItem lavarItem = new JMenuItem("Lavar");
+                                lavarItem.addActionListener(ev -> {
+                                    ((ILavavel) item).registrarLavagem();
+                                    JOptionPane.showMessageDialog(janela, "Roupa lavada!");
+                                    atualizarLista();
+                                });
+                                menu.add(lavarItem);
+                            }
+                            if (item instanceof IEmprestavel) {
+                                JMenuItem emprestarItem = new JMenuItem("Emprestar");
+                                emprestarItem.addActionListener(ev -> emprestarItemDialog(item));
+                                menu.add(emprestarItem);
+                            }
+                            menu.show(itemPanel, e.getX(), e.getY());
+                        }
+                    }
+                });
                 itensListPanel.add(itemPanel);
             }
         }
         itensListPanel.revalidate();
         itensListPanel.repaint();
+    }
+
+    // Métodos auxiliares para editar e emprestar
+    private void editarItemDialog(Item item) {
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 2));
+        JTextField nomeField = new JTextField(item.getNome());
+        JTextField corField = new JTextField(item.getCor());
+        JTextField tamanhoField = new JTextField(item.getTamanho());
+        JTextField lojaField = new JTextField(item.getOrigem());
+        JTextField conservacaoField = new JTextField(item.getConservacao());
+        JTextField imgPathField = new JTextField(item.getImgPath());
+        panel.add(new JLabel("Nome:"));
+        panel.add(nomeField);
+        panel.add(new JLabel("Cor:"));
+        panel.add(corField);
+        panel.add(new JLabel("Tamanho:"));
+        panel.add(tamanhoField);
+        panel.add(new JLabel("Loja:"));
+        panel.add(lojaField);
+        panel.add(new JLabel("Conservação:"));
+        panel.add(conservacaoField);
+        panel.add(new JLabel("Img Path:"));
+        panel.add(imgPathField);
+        int result = JOptionPane.showConfirmDialog(janela, panel, "Editar Item", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            item.setNome(nomeField.getText());
+            item.setCor(corField.getText());
+            item.setTamanho(tamanhoField.getText());
+            item.setOrigem(lojaField.getText());
+            item.setConservacao(conservacaoField.getText());
+            item.setImgPath(imgPathField.getText());
+            atualizarLista();
+        }
+    }
+    private void emprestarItemDialog(Item item) {
+        if (!(item instanceof IEmprestavel)) return;
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 2));
+        JTextField pessoaField = new JTextField();
+        JTextField dataField = new JTextField();
+        panel.add(new JLabel("Pessoa:"));
+        panel.add(pessoaField);
+        panel.add(new JLabel("Data:"));
+        panel.add(dataField);
+        int result = JOptionPane.showConfirmDialog(janela, panel, "Emprestar Item", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            ((IEmprestavel) item).registrarEmprestimo(pessoaField.getText(), dataField.getText());
+            JOptionPane.showMessageDialog(janela, "Item emprestado!");
+            atualizarLista();
+        }
     }
 }

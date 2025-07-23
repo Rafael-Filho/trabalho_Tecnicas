@@ -1,4 +1,4 @@
-public class Roupas extends Item implements ILavavel{
+public class Roupas extends Item implements ILavavel {
     protected int vezesLavadas;
     protected boolean estado;
 
